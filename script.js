@@ -16,11 +16,12 @@ import {
     doc,
     setDoc,
     getDoc,
-    addDoc,
     query,
     where,
     onSnapshot,
-    serverTimestamp
+    serverTimestamp,
+    addDoc,
+    orderBy
 } from
     "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
@@ -93,9 +94,41 @@ const friendRequests =
 const friendsList =
     document.getElementById("friends-list");
 
+const chatroomsList =
+    document.getElementById("chatrooms-list");
+
+const chatRoom =
+    document.getElementById("chat-room");
+
+const chatRoomName =
+    document.getElementById("chat-room-name");
+
+const backToFriendsBtn =
+    document.getElementById("back-to-friends-btn");
+
+const messagesContainer =
+    document.getElementById("messages");
+
+const messageForm =
+    document.getElementById("message-form");
+
+const messageInput =
+    document.getElementById("message-input");
+
 
 // ========================================
-// 로그인
+// 현재 채팅방
+// ========================================
+
+let currentRoomId = null;
+
+let currentFriend = null;
+
+let unsubscribeMessages = null;
+
+
+// ========================================
+// Google 로그인
 // ========================================
 
 googleLoginBtn.addEventListener(
@@ -152,7 +185,7 @@ logoutBtn.addEventListener(
 
 
 // ========================================
-// 로그인 상태 확인
+// 로그인 상태
 // ========================================
 
 onAuthStateChanged(
@@ -169,13 +202,11 @@ onAuthStateChanged(
             userName.textContent =
                 user.displayName || "사용자";
 
-            // 사용자 정보 저장
+
             await saveUser(user);
 
-            // 친구 요청 불러오기
             loadFriendRequests();
 
-            // 친구 목록 불러오기
             loadFriends();
 
         } else {
@@ -184,6 +215,8 @@ onAuthStateChanged(
 
             chatContainer.style.display = "none";
 
+            closeChatRoom();
+
         }
 
     }
@@ -191,7 +224,7 @@ onAuthStateChanged(
 
 
 // ========================================
-// 사용자 정보 저장
+// 사용자 저장
 // ========================================
 
 async function saveUser(user) {
@@ -301,97 +334,91 @@ async function searchFriends() {
 
     try {
 
-        const usersQuery = query(
-            collection(db, "users")
-        );
-
-
-        const snapshot =
-            await getDoc(
-                doc(
-                    db,
-                    "users",
-                    currentUser.uid
-                )
+        const usersQuery =
+            query(
+                collection(db, "users")
             );
 
 
-        // 전체 users 조회
-        const allUsers =
-            await new Promise(
-                function(resolve, reject) {
+        const unsubscribe =
+            onSnapshot(
 
-                    const unsubscribe =
-                        onSnapshot(
-                            usersQuery,
-                            function(snapshot) {
+                usersQuery,
 
-                                unsubscribe();
+                function(snapshot) {
 
-                                resolve(snapshot);
+                    unsubscribe();
 
-                            },
-                            function(error) {
+                    let found = false;
 
-                                reject(error);
+
+                    snapshot.forEach(
+                        function(userDoc) {
+
+                            const userData =
+                                userDoc.data();
+
+
+                            if (
+                                userData.uid
+                                ===
+                                currentUser.uid
+                            ) {
+                                return;
+                            }
+
+
+                            const name =
+                                (
+                                    userData.name
+                                    || ""
+                                ).toLowerCase();
+
+
+                            const email =
+                                (
+                                    userData.email
+                                    || ""
+                                ).toLowerCase();
+
+
+                            if (
+                                name.includes(keyword)
+                                ||
+                                email.includes(keyword)
+                            ) {
+
+                                found = true;
+
+                                createSearchResult(
+                                    userData
+                                );
 
                             }
-                        );
 
-                }
-            );
-
-
-        let found = false;
+                        }
+                    );
 
 
-        allUsers.forEach(
-            function(userDoc) {
+                    if (!found) {
 
-                const userData =
-                    userDoc.data();
+                        searchResults.innerHTML =
+                            "<p>검색 결과가 없습니다.</p>";
 
+                    }
 
-                if (
-                    userData.uid === currentUser.uid
-                ) {
-                    return;
-                }
+                },
 
+                function(error) {
 
-                const name =
-                    (userData.name || "")
-                    .toLowerCase();
-
-                const email =
-                    (userData.email || "")
-                    .toLowerCase();
-
-
-                if (
-                    name.includes(keyword)
-                    ||
-                    email.includes(keyword)
-                ) {
-
-                    found = true;
-
-                    createSearchResult(
-                        userData
+                    console.error(
+                        "친구 검색 오류:",
+                        error
                     );
 
                 }
 
-            }
-        );
-
-
-        if (!found) {
-
-            searchResults.innerHTML =
-                "<p>검색 결과가 없습니다.</p>";
-
-        }
+            );
 
     } catch (error) {
 
@@ -400,16 +427,13 @@ async function searchFriends() {
             error
         );
 
-        searchResults.innerHTML =
-            "<p>검색에 실패했습니다.</p>";
-
     }
 
 }
 
 
 // ========================================
-// 검색 결과 UI
+// 검색 결과
 // ========================================
 
 function createSearchResult(userData) {
@@ -424,14 +448,19 @@ function createSearchResult(userData) {
     const info =
         document.createElement("div");
 
+
     info.innerHTML = `
 
         <strong>
-            ${escapeHTML(userData.name || "사용자")}
+            ${escapeHTML(
+                userData.name || "사용자"
+            )}
         </strong>
 
         <small>
-            ${escapeHTML(userData.email || "")}
+            ${escapeHTML(
+                userData.email || ""
+            )}
         </small>
 
     `;
@@ -439,6 +468,7 @@ function createSearchResult(userData) {
 
     const button =
         document.createElement("button");
+
 
     button.textContent =
         "친구 요청";
@@ -466,7 +496,7 @@ function createSearchResult(userData) {
 
 
 // ========================================
-// 친구 요청 보내기
+// 친구 요청
 // ========================================
 
 async function sendFriendRequest(targetUser) {
@@ -480,7 +510,6 @@ async function sendFriendRequest(targetUser) {
 
     try {
 
-        // 요청 ID
         const requestId =
             currentUser.uid
             + "_"
@@ -547,8 +576,7 @@ async function sendFriendRequest(targetUser) {
 // 받은 친구 요청
 // ========================================
 
-let unsubscribeRequests =
-    null;
+let unsubscribeRequests = null;
 
 
 function loadFriendRequests() {
@@ -709,7 +737,7 @@ async function acceptFriendRequest(
 
     try {
 
-        // 내 친구 목록에 추가
+        // 내 친구 목록
         await setDoc(
 
             doc(
@@ -740,7 +768,7 @@ async function acceptFriendRequest(
         );
 
 
-        // 상대방 친구 목록에도 추가
+        // 상대방 정보
         const senderDoc =
             await getDoc(
                 doc(
@@ -757,6 +785,7 @@ async function acceptFriendRequest(
                 senderDoc.data();
 
 
+            // 상대방 친구 목록
             await setDoc(
 
                 doc(
@@ -838,8 +867,7 @@ async function acceptFriendRequest(
 // 친구 목록
 // ========================================
 
-let unsubscribeFriends =
-    null;
+let unsubscribeFriends = null;
 
 
 function loadFriends() {
@@ -939,12 +967,13 @@ function loadFriends() {
                             "채팅";
 
 
+                        // ★ 실제 채팅방 연결
                         chatButton.addEventListener(
                             "click",
                             function() {
 
-                                alert(
-                                    "다음 단계에서 채팅방을 연결합니다."
+                                openChatRoom(
+                                    friend
                                 );
 
                             }
@@ -967,6 +996,505 @@ function loadFriends() {
 
             }
 
+        );
+
+}
+
+
+// ========================================
+// 1:1 채팅방 ID 생성
+// ========================================
+
+function createRoomId(uid1, uid2) {
+
+    return [uid1, uid2]
+        .sort()
+        .join("_");
+
+}
+
+
+// ========================================
+// 채팅방 열기
+// ========================================
+
+async function openChatRoom(friend) {
+
+    const currentUser =
+        auth.currentUser;
+
+
+    if (!currentUser) {
+
+        alert(
+            "로그인이 필요합니다."
+        );
+
+        return;
+
+    }
+
+
+    try {
+
+        currentFriend =
+            friend;
+
+
+        // 두 UID를 정렬해서
+        // 항상 같은 채팅방 ID 사용
+        const roomId =
+            createRoomId(
+                currentUser.uid,
+                friend.uid
+            );
+
+
+        currentRoomId =
+            roomId;
+
+
+        const roomRef =
+            doc(
+                db,
+                "chatRooms",
+                roomId
+            );
+
+
+        const roomSnapshot =
+            await getDoc(roomRef);
+
+
+        // 채팅방이 없으면 생성
+        if (!roomSnapshot.exists()) {
+
+            await setDoc(
+
+                roomRef,
+
+                {
+
+                    roomId:
+                        roomId,
+
+                    members: [
+                        currentUser.uid,
+                        friend.uid
+                    ],
+
+                    memberNames: {
+
+                        [currentUser.uid]:
+                            currentUser.displayName
+                            || "사용자",
+
+                        [friend.uid]:
+                            friend.name
+                            || "사용자"
+
+                    },
+
+                    createdAt:
+                        serverTimestamp(),
+
+                    updatedAt:
+                        serverTimestamp()
+
+                }
+
+            );
+
+        }
+
+
+        // 친구 목록 숨기기
+        document
+            .querySelectorAll(
+                ".friends-section, .chatrooms-section"
+            )
+            .forEach(
+                function(element) {
+
+                    element.style.display =
+                        "none";
+
+                }
+            );
+
+
+        // 채팅방 표시
+        chatRoom.style.display =
+            "block";
+
+
+        chatRoomName.textContent =
+            friend.name || "사용자";
+
+
+        messagesContainer.innerHTML =
+            "<p>메시지를 불러오는 중...</p>";
+
+
+        loadRoomMessages(
+            roomId
+        );
+
+
+        messageInput.focus();
+
+
+    } catch (error) {
+
+        console.error(
+            "채팅방 열기 오류:",
+            error
+        );
+
+        alert(
+            "채팅방을 열 수 없습니다."
+        );
+
+    }
+
+}
+
+
+// ========================================
+// 채팅방 메시지 실시간 불러오기
+// ========================================
+
+function loadRoomMessages(roomId) {
+
+    if (unsubscribeMessages) {
+
+        unsubscribeMessages();
+
+    }
+
+
+    const messagesQuery =
+        query(
+
+            collection(
+                db,
+                "chatRooms",
+                roomId,
+                "messages"
+            ),
+
+            orderBy(
+                "createdAt",
+                "asc"
+            )
+
+        );
+
+
+    unsubscribeMessages =
+        onSnapshot(
+
+            messagesQuery,
+
+            function(snapshot) {
+
+                messagesContainer.innerHTML =
+                    "";
+
+
+                if (snapshot.empty) {
+
+                    const emptyMessage =
+                        document.createElement(
+                            "p"
+                        );
+
+                    emptyMessage.textContent =
+                        "아직 메시지가 없습니다.";
+
+                    messagesContainer.appendChild(
+                        emptyMessage
+                    );
+
+                    return;
+
+                }
+
+
+                snapshot.forEach(
+                    function(messageDoc) {
+
+                        const message =
+                            messageDoc.data();
+
+
+                        const messageElement =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        messageElement.className =
+                            "message";
+
+
+                        // 내 메시지 / 상대방 메시지 구분
+                        if (
+                            message.senderId
+                            ===
+                            auth.currentUser.uid
+                        ) {
+
+                            messageElement.classList.add(
+                                "my-message"
+                            );
+
+                        } else {
+
+                            messageElement.classList.add(
+                                "other-message"
+                            );
+
+                        }
+
+
+                        const nameElement =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        nameElement.className =
+                            "message-name";
+
+
+                        nameElement.textContent =
+                            message.senderName
+                            || "사용자";
+
+
+                        const textElement =
+                            document.createElement(
+                                "div"
+                            );
+
+
+                        textElement.textContent =
+                            message.text
+                            || "";
+
+
+                        messageElement.appendChild(
+                            nameElement
+                        );
+
+
+                        messageElement.appendChild(
+                            textElement
+                        );
+
+
+                        messagesContainer.appendChild(
+                            messageElement
+                        );
+
+                    }
+                );
+
+
+                messagesContainer.scrollTop =
+                    messagesContainer.scrollHeight;
+
+            },
+
+            function(error) {
+
+                console.error(
+                    "메시지 불러오기 오류:",
+                    error
+                );
+
+            }
+
+        );
+
+}
+
+
+// ========================================
+// 메시지 전송
+// ========================================
+
+messageForm.addEventListener(
+    "submit",
+
+    async function(event) {
+
+        event.preventDefault();
+
+
+        const text =
+            messageInput.value.trim();
+
+
+        if (!text) return;
+
+
+        const currentUser =
+            auth.currentUser;
+
+
+        if (
+            !currentUser
+            ||
+            !currentRoomId
+        ) {
+
+            alert(
+                "채팅방에 먼저 들어가주세요."
+            );
+
+            return;
+
+        }
+
+
+        try {
+
+            await addDoc(
+
+                collection(
+                    db,
+                    "chatRooms",
+                    currentRoomId,
+                    "messages"
+                ),
+
+                {
+
+                    text:
+                        text,
+
+                    senderId:
+                        currentUser.uid,
+
+                    senderName:
+                        currentUser.displayName
+                        || "사용자",
+
+                    photoURL:
+                        currentUser.photoURL
+                        || "",
+
+                    createdAt:
+                        serverTimestamp()
+
+                }
+
+            );
+
+
+            // 채팅방 마지막 활동 시간
+            await setDoc(
+
+                doc(
+                    db,
+                    "chatRooms",
+                    currentRoomId
+                ),
+
+                {
+
+                    updatedAt:
+                        serverTimestamp()
+
+                },
+
+                {
+                    merge: true
+                }
+
+            );
+
+
+            messageInput.value = "";
+
+            messageInput.focus();
+
+
+        } catch (error) {
+
+            console.error(
+                "메시지 전송 오류:",
+                error
+            );
+
+            alert(
+                "메시지를 전송하지 못했습니다."
+            );
+
+        }
+
+    }
+);
+
+
+// ========================================
+// 채팅방 닫기
+// ========================================
+
+backToFriendsBtn.addEventListener(
+    "click",
+    closeChatRoom
+);
+
+
+function closeChatRoom() {
+
+    if (unsubscribeMessages) {
+
+        unsubscribeMessages();
+
+        unsubscribeMessages =
+            null;
+
+    }
+
+
+    currentRoomId =
+        null;
+
+    currentFriend =
+        null;
+
+
+    if (chatRoom) {
+
+        chatRoom.style.display =
+            "none";
+
+    }
+
+
+    if (messagesContainer) {
+
+        messagesContainer.innerHTML =
+            "";
+
+    }
+
+
+    document
+        .querySelectorAll(
+            ".friends-section, .chatrooms-section"
+        )
+        .forEach(
+            function(element) {
+
+                element.style.display =
+                    "";
+
+            }
         );
 
 }
