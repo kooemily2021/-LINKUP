@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>LinkUp</title>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="chat-container">
+
+        <header class="chat-header">
+            <h1>LinkUp</h1>
+            <p>LINK UP!</p>
+        </header>
+
+        <main id="messages">
+            <div class="system-message">
+                WELCOME!
+            </div>
+        </main>
+
+        <form id="message-form">
+
+            <input
+                type="text"
+                id="message-input"
+                placeholder="메시지를 입력하세요..."
+                autocomplete="off"
+                maxlength="500"
+            >
+
+            <button type="submit">
+                전송
+            </button>
+
+        </form>
+
+    </div>
+
+    <script type="module" src="script.js"></script>
+
+</body>
+</html>
