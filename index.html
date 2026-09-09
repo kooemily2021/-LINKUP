@@ -112,31 +112,45 @@
         </section>
 
 
-        <!-- 기존 메시지 영역 -->
-        <main
-            id="messages"
-            style="display: none;"
-        ></main>
+<!-- 채팅방 화면 -->
+<section
+    id="chat-room"
+    style="display: none;"
+>
+
+    <div class="chat-room-header">
+
+        <button id="back-to-friends-btn">
+            ← 뒤로
+        </button>
+
+        <h2 id="chat-room-name">
+            채팅
+        </h2>
+
+    </div>
 
 
-        <form
-            id="message-form"
-            style="display: none;"
+    <main id="messages"></main>
+
+
+    <form id="message-form">
+
+        <input
+            type="text"
+            id="message-input"
+            placeholder="메시지를 입력하세요..."
+            autocomplete="off"
+            maxlength="500"
         >
 
-            <input
-                type="text"
-                id="message-input"
-                placeholder="메시지를 입력하세요..."
-                autocomplete="off"
-                maxlength="500"
-            >
+        <button type="submit">
+            전송
+        </button>
 
-            <button type="submit">
-                전송
-            </button>
+    </form>
 
-        </form>
+</section>
 
     </div>
 
