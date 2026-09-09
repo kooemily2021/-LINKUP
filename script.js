@@ -3,7 +3,10 @@ import { initializeApp } from
 
 import {
     getAuth,
-    signInAnonymously
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged
 } from
     "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
@@ -34,11 +37,27 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
-
 const db = getFirestore(app);
 
+const provider = new GoogleAuthProvider();
 
-// HTML 요소 가져오기
+
+// HTML 요소
+const loginScreen =
+    document.getElementById("login-screen");
+
+const chatContainer =
+    document.getElementById("chat-container");
+
+const googleLoginBtn =
+    document.getElementById("google-login-btn");
+
+const logoutBtn =
+    document.getElementById("logout-btn");
+
+const userName =
+    document.getElementById("user-name");
+
 const messagesContainer =
     document.getElementById("messages");
 
@@ -49,44 +68,111 @@ const messageInput =
     document.getElementById("message-input");
 
 
-// 익명 로그인 후 채팅 기능 시작
-async function startChat() {
+// Google 로그인 버튼
+googleLoginBtn.addEventListener(
+    "click",
+    async function() {
 
-    try {
+        try {
 
-        await signInAnonymously(auth);
+            await signInWithPopup(
+                auth,
+                provider
+            );
 
-        console.log("익명 로그인 성공");
+        } catch (error) {
 
-        loadMessages();
+            console.error(
+                "Google 로그인 오류:",
+                error
+            );
 
-    } catch (error) {
+            alert(
+                "Google 로그인에 실패했습니다."
+            );
 
-        console.error("로그인 오류:", error);
-
-        alert("로그인에 실패했습니다.");
+        }
 
     }
+);
 
-}
+
+// 로그아웃 버튼
+logoutBtn.addEventListener(
+    "click",
+    async function() {
+
+        try {
+
+            await signOut(auth);
+
+        } catch (error) {
+
+            console.error(
+                "로그아웃 오류:",
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// 로그인 상태 변화 감지
+onAuthStateChanged(
+    auth,
+
+    function(user) {
+
+        if (user) {
+
+            // 로그인 상태
+            loginScreen.style.display = "none";
+
+            chatContainer.style.display = "flex";
+
+            userName.textContent =
+                user.displayName;
+
+            loadMessages();
+
+        } else {
+
+            // 로그아웃 상태
+            loginScreen.style.display = "flex";
+
+            chatContainer.style.display = "none";
+
+        }
+
+    }
+);
 
 
 // 메시지 전송
 messageForm.addEventListener(
     "submit",
+
     async function(event) {
 
         event.preventDefault();
 
-        const text = messageInput.value.trim();
+        const text =
+            messageInput.value.trim();
 
         if (!text) return;
 
 
-        // 로그인 완료 확인
-        if (!auth.currentUser) {
+        const user =
+            auth.currentUser;
 
-            alert("로그인 중입니다. 잠시 후 다시 시도해주세요.");
+
+        if (!user) {
+
+            alert(
+                "로그인이 필요합니다."
+            );
 
             return;
 
@@ -97,22 +183,41 @@ messageForm.addEventListener(
 
             await addDoc(
                 collection(db, "messages"),
+
                 {
                     text: text,
-                    name: "익명 사용자",
-                    userId: auth.currentUser.uid,
-                    createdAt: serverTimestamp()
+
+                    name:
+                        user.displayName
+                        || "사용자",
+
+                    userId:
+                        user.uid,
+
+                    photoURL:
+                        user.photoURL
+                        || "",
+
+                    createdAt:
+                        serverTimestamp()
+
                 }
             );
 
 
             messageInput.value = "";
 
+
         } catch (error) {
 
-            console.error("메시지 전송 오류:", error);
+            console.error(
+                "메시지 전송 오류:",
+                error
+            );
 
-            alert("메시지를 전송하지 못했습니다.");
+            alert(
+                "메시지를 전송하지 못했습니다."
+            );
 
         }
 
@@ -121,89 +226,106 @@ messageForm.addEventListener(
 
 
 // 실시간 메시지 불러오기
+let unsubscribeMessages = null;
+
 function loadMessages() {
 
+    // 중복 실행 방지
+    if (unsubscribeMessages) {
+        unsubscribeMessages();
+    }
+
+
     const messagesQuery = query(
+
         collection(db, "messages"),
-        orderBy("createdAt", "asc")
-    );
 
-
-    onSnapshot(
-        messagesQuery,
-
-        function(snapshot) {
-
-            messagesContainer.innerHTML = "";
-
-
-            snapshot.forEach(function(docSnapshot) {
-
-                const messageData =
-                    docSnapshot.data();
-
-
-                // 변수 이름을 document로 사용하지 않음!
-                const messageElement =
-                    window.document.createElement("div");
-
-
-                messageElement.className =
-                    "message";
-
-
-                const nameElement =
-                    window.document.createElement("div");
-
-
-                nameElement.className =
-                    "message-name";
-
-                nameElement.textContent =
-                    messageData.name;
-
-
-                const textElement =
-                    window.document.createElement("div");
-
-                textElement.textContent =
-                    messageData.text;
-
-
-                messageElement.appendChild(
-                    nameElement
-                );
-
-                messageElement.appendChild(
-                    textElement
-                );
-
-
-                messagesContainer.appendChild(
-                    messageElement
-                );
-
-            });
-
-
-            messagesContainer.scrollTop =
-                messagesContainer.scrollHeight;
-
-        },
-
-        function(error) {
-
-            console.error(
-                "메시지 불러오기 오류:",
-                error
-            );
-
-        }
+        orderBy(
+            "createdAt",
+            "asc"
+        )
 
     );
+
+
+    unsubscribeMessages =
+        onSnapshot(
+
+            messagesQuery,
+
+            function(snapshot) {
+
+                messagesContainer.innerHTML = "";
+
+
+                snapshot.forEach(
+                    function(docSnapshot) {
+
+                        const messageData =
+                            docSnapshot.data();
+
+
+                        const messageElement =
+                            document.createElement(
+                                "div"
+                            );
+
+                        messageElement.className =
+                            "message";
+
+
+                        const nameElement =
+                            document.createElement(
+                                "div"
+                            );
+
+                        nameElement.className =
+                            "message-name";
+
+                        nameElement.textContent =
+                            messageData.name
+                            || "사용자";
+
+
+                        const textElement =
+                            document.createElement(
+                                "div"
+                            );
+
+                        textElement.textContent =
+                            messageData.text;
+
+
+                        messageElement.appendChild(
+                            nameElement
+                        );
+
+                        messageElement.appendChild(
+                            textElement
+                        );
+
+                        messagesContainer.appendChild(
+                            messageElement
+                        );
+
+                    }
+                );
+
+
+                messagesContainer.scrollTop =
+                    messagesContainer.scrollHeight;
+
+            },
+
+            function(error) {
+
+                console.error(
+                    "메시지 불러오기 오류:",
+                    error
+                );
+
+            }
+
+        );
 
 }
-
-
-// 채팅 시작
-startChat();
