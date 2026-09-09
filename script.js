@@ -1,4 +1,3 @@
-// Firebase 기능 가져오기
 import { initializeApp } from
     "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
 
@@ -20,7 +19,7 @@ import {
     "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 
-// Firebase 프로젝트 설정
+// Firebase 설정
 const firebaseConfig = {
     apiKey: "AIzaSyDmhkAhyUxGtekFLRe9AnJMQOOym867Cyc",
     authDomain: "linkup-a76c2.firebaseapp.com",
@@ -34,25 +33,24 @@ const firebaseConfig = {
 // Firebase 시작
 const app = initializeApp(firebaseConfig);
 
-
-// Authentication 연결
 const auth = getAuth(app);
 
-
-// Firestore 연결
 const db = getFirestore(app);
 
 
 // HTML 요소 가져오기
-const messagesContainer = document.getElementById("messages");
+const messagesContainer =
+    document.getElementById("messages");
 
-const messageForm = document.getElementById("message-form");
+const messageForm =
+    document.getElementById("message-form");
 
-const messageInput = document.getElementById("message-input");
+const messageInput =
+    document.getElementById("message-input");
 
 
-// 익명 로그인
-async function login() {
+// 익명 로그인 후 채팅 기능 시작
+async function startChat() {
 
     try {
 
@@ -60,114 +58,152 @@ async function login() {
 
         console.log("익명 로그인 성공");
 
+        loadMessages();
+
     } catch (error) {
 
         console.error("로그인 오류:", error);
+
+        alert("로그인에 실패했습니다.");
 
     }
 
 }
 
 
-// 로그인 실행
-login();
-
-
 // 메시지 전송
-messageForm.addEventListener("submit", async (event) => {
+messageForm.addEventListener(
+    "submit",
+    async function(event) {
 
-    // 페이지 새로고침 방지
-    event.preventDefault();
+        event.preventDefault();
+
+        const text = messageInput.value.trim();
+
+        if (!text) return;
 
 
-    const text = messageInput.value.trim();
+        // 로그인 완료 확인
+        if (!auth.currentUser) {
+
+            alert("로그인 중입니다. 잠시 후 다시 시도해주세요.");
+
+            return;
+
+        }
 
 
-    // 빈 메시지는 전송하지 않음
-    if (!text) {
-        return;
+        try {
+
+            await addDoc(
+                collection(db, "messages"),
+                {
+                    text: text,
+                    name: "익명 사용자",
+                    userId: auth.currentUser.uid,
+                    createdAt: serverTimestamp()
+                }
+            );
+
+
+            messageInput.value = "";
+
+        } catch (error) {
+
+            console.error("메시지 전송 오류:", error);
+
+            alert("메시지를 전송하지 못했습니다.");
+
+        }
+
     }
-
-
-    try {
-
-        // Firestore에 메시지 저장
-        await addDoc(
-            collection(db, "messages"),
-            {
-                text: text,
-                name: "익명 사용자",
-                userId: auth.currentUser.uid,
-                createdAt: serverTimestamp()
-            }
-        );
-
-
-        // 입력창 비우기
-        messageInput.value = "";
-
-
-    } catch (error) {
-
-        console.error("메시지 전송 오류:", error);
-
-        alert("메시지를 전송하지 못했습니다.");
-
-    }
-
-});
-
-
-// Firestore의 메시지를 실시간으로 가져오기
-const messagesQuery = query(
-    collection(db, "messages"),
-    orderBy("createdAt", "asc")
 );
 
 
-onSnapshot(messagesQuery, (snapshot) => {
+// 실시간 메시지 불러오기
+function loadMessages() {
 
-    // 기존 메시지 화면 초기화
-    messagesContainer.innerHTML = "";
-
-
-    snapshot.forEach((document) => {
-
-        const data = document.data();
+    const messagesQuery = query(
+        collection(db, "messages"),
+        orderBy("createdAt", "asc")
+    );
 
 
-        // 메시지 박스 생성
-        const messageElement = document.createElement("div");
+    onSnapshot(
+        messagesQuery,
 
-        messageElement.className = "message";
+        function(snapshot) {
 
-
-        // 이름
-        const nameElement = document.createElement("div");
-
-        nameElement.className = "message-name";
-
-        nameElement.textContent = data.name;
+            messagesContainer.innerHTML = "";
 
 
-        // 메시지 내용
-        const textElement = document.createElement("div");
+            snapshot.forEach(function(docSnapshot) {
 
-        textElement.textContent = data.text;
-
-
-        // 화면에 추가
-        messageElement.appendChild(nameElement);
-
-        messageElement.appendChild(textElement);
-
-        messagesContainer.appendChild(messageElement);
-
-    });
+                const messageData =
+                    docSnapshot.data();
 
 
-    // 가장 최근 메시지로 자동 스크롤
-    messagesContainer.scrollTop =
-        messagesContainer.scrollHeight;
+                // 변수 이름을 document로 사용하지 않음!
+                const messageElement =
+                    window.document.createElement("div");
 
-});
+
+                messageElement.className =
+                    "message";
+
+
+                const nameElement =
+                    window.document.createElement("div");
+
+
+                nameElement.className =
+                    "message-name";
+
+                nameElement.textContent =
+                    messageData.name;
+
+
+                const textElement =
+                    window.document.createElement("div");
+
+                textElement.textContent =
+                    messageData.text;
+
+
+                messageElement.appendChild(
+                    nameElement
+                );
+
+                messageElement.appendChild(
+                    textElement
+                );
+
+
+                messagesContainer.appendChild(
+                    messageElement
+                );
+
+            });
+
+
+            messagesContainer.scrollTop =
+                messagesContainer.scrollHeight;
+
+        },
+
+        function(error) {
+
+            console.error(
+                "메시지 불러오기 오류:",
+                error
+            );
+
+        }
+
+    );
+
+}
+
+
+// 채팅 시작
+startChat();
