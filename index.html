@@ -8,21 +8,55 @@
     
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-    <div class="chat-container">
+    <!-- 로그인 화면 -->
+    <div id="login-screen">
+
+        <div class="login-box">
+
+            <h1>LinkUp</h1>
+
+            <p>실시간 채팅을 시작해보세요.</p>
+
+            <button id="google-login-btn">
+                Google로 로그인
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- 채팅 화면 -->
+    <div
+        class="chat-container"
+        id="chat-container"
+        style="display: none;"
+    >
 
         <header class="chat-header">
-            <h1>LinkUp</h1>
-            <p>LINK UP!</p>
+
+            <div>
+                <h1>LinkUp</h1>
+                <p id="user-name"></p>
+            </div>
+
+            <button id="logout-btn">
+                로그아웃
+            </button>
+
         </header>
 
+
         <main id="messages">
+
             <div class="system-message">
-                WELCOME!
+                채팅방에 오신 것을 환영합니다!
             </div>
+
         </main>
+
 
         <form id="message-form">
 
@@ -42,7 +76,11 @@
 
     </div>
 
-    <script type="module" src="script.js"></script>
+
+    <script
+        type="module"
+        src="script.js"
+    ></script>
 
 </body>
 </html>
