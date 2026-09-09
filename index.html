@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
+
     <title>LinkUp</title>
-    
+
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <!-- 로그인 화면 -->
@@ -28,13 +29,14 @@
     </div>
 
 
-    <!-- 채팅 화면 -->
+    <!-- 메인 화면 -->
     <div
-        class="chat-container"
         id="chat-container"
+        class="chat-container"
         style="display: none;"
     >
 
+        <!-- 상단 -->
         <header class="chat-header">
 
             <div>
@@ -49,16 +51,78 @@
         </header>
 
 
-        <main id="messages">
+        <!-- 친구 검색 -->
+        <section class="friends-section">
 
-            <div class="system-message">
-                채팅방에 오신 것을 환영합니다!
+            <h2>친구 찾기</h2>
+
+            <div class="friend-search">
+
+                <input
+                    type="text"
+                    id="friend-search-input"
+                    placeholder="이름 또는 이메일 검색"
+                    autocomplete="off"
+                >
+
+                <button id="friend-search-btn">
+                    검색
+                </button>
+
             </div>
 
-        </main>
+            <div id="search-results"></div>
+
+        </section>
 
 
-        <form id="message-form">
+        <!-- 친구 요청 -->
+        <section class="friends-section">
+
+            <h2>받은 친구 요청</h2>
+
+            <div id="friend-requests">
+                <p>받은 친구 요청이 없습니다.</p>
+            </div>
+
+        </section>
+
+
+        <!-- 친구 목록 -->
+        <section class="friends-section">
+
+            <h2>친구 목록</h2>
+
+            <div id="friends-list">
+                <p>친구가 없습니다.</p>
+            </div>
+
+        </section>
+
+
+        <!-- 나중에 채팅방 목록이 들어갈 곳 -->
+        <section class="chatrooms-section">
+
+            <h2>채팅방</h2>
+
+            <div id="chatrooms-list">
+                <p>친구를 추가하면 채팅방을 만들 수 있습니다.</p>
+            </div>
+
+        </section>
+
+
+        <!-- 기존 메시지 영역 -->
+        <main
+            id="messages"
+            style="display: none;"
+        ></main>
+
+
+        <form
+            id="message-form"
+            style="display: none;"
+        >
 
             <input
                 type="text"
